@@ -22,6 +22,13 @@ import {
 
 import { FaFacebook, FaGithub, FaLinkedin ,  } from "react-icons/fa";
 
+// Cache the year so it is prerendered with the static shell instead of reading
+// the current time during prerender (which Cache Components rejects).
+async function CopyrightYear() {
+  "use cache";
+  return <>{new Date().getFullYear()}</>;
+}
+
 const Footer = () => {
   return (
     <footer className="bg-[#173F35] text-white">
@@ -177,7 +184,7 @@ const Footer = () => {
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/20 pt-7 text-center sm:flex-row sm:text-left">
 
           <p className="text-sm text-gray-300">
-            © {new Date().getFullYear()} BookNook. All rights reserved.
+            © <CopyrightYear /> BookNook. All rights reserved.
           </p>
 
           <p className="text-sm text-gray-300">
