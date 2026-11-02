@@ -4,7 +4,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -20,13 +20,20 @@ import { FaGoogle } from "react-icons/fa";
 
 const LoginPage = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Login-এর পর কোথায় যাবে?
-  const callbackURL = searchParams.get("callbackUrl") || "/";
+  // Only allow internal paths so the callback can't redirect off-site.
+  const getCallbackURL = () => {
+    if (typeof window === "undefined") return "/";
+
+    const callbackUrl = new URLSearchParams(window.location.search).get(
+      "callbackUrl"
+    );
+
+    return callbackUrl?.startsWith("/") ? callbackUrl : "/";
+  };
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -36,6 +43,8 @@ const LoginPage = () => {
 
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
+
+    const callbackURL = getCallbackURL();
 
     try {
       setIsLoading(true);
@@ -75,7 +84,7 @@ const LoginPage = () => {
 
       const { error } = await authClient.signIn.social({
         provider: "google",
-        callbackURL,
+        callbackURL: getCallbackURL(),
       });
 
       if (error) {
@@ -224,7 +233,7 @@ const LoginPage = () => {
           <p className="mt-6 text-center text-sm text-[#727C75]">
             Don&apos;t have an account?{" "}
             <Link
-              href="/register"
+              href="/sign-up"
               className="font-semibold text-[#173F35] underline-offset-4 hover:underline"
             >
               Register

@@ -76,7 +76,7 @@ const SignUpPage = () => {
 
       toast.success("Registration successful! Please login.");
 
-      router.push("/login");
+      router.push("/");
       router.refresh();
 
     } catch (error) {
@@ -291,7 +291,7 @@ const SignUpPage = () => {
           <p className="mt-6 text-center text-sm text-[#727C75]">
             Already have an account?{" "}
             <Link
-              href="/login"
+              href="/sign-in"
               className="font-semibold text-[#173F35] underline-offset-4 hover:underline"
             >
               Login

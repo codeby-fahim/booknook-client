@@ -72,7 +72,7 @@ const Hero = () => {
             </Link>
 
             <Link
-              href="/books/add"
+              href="/add-books"
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[#173F35] px-6 py-3.5 text-sm font-semibold text-[#173F35] transition-all duration-300 hover:bg-[#173F35] hover:text-white sm:w-auto sm:px-7"
             >
               <BookOpen size={19} />

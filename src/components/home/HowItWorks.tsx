@@ -33,7 +33,10 @@ const steps = [
 
 const HowItWorks = () => {
   return (
-    <section className="bg-[#FAF8F3] px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+    <section
+      id="how-it-works"
+      className="scroll-mt-24 bg-[#FAF8F3] px-4 py-16 sm:px-6 md:py-20 lg:px-8"
+    >
       <div className="mx-auto max-w-7xl">
 
         {/* Section Heading */}

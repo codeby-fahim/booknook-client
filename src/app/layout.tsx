@@ -29,9 +29,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col bg-[#FAF8F3] text-[#252D29]">
         <Navbar></Navbar>
-        {children}
+        <main className="flex-1">{children}</main>
         <Footer></Footer>
-        <Toaster richColors   position="top-right" />
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

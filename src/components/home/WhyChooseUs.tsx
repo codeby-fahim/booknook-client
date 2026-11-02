@@ -35,7 +35,10 @@ const features = [
 
 const WhyChooseUs = () => {
   return (
-    <section className="bg-white px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+    <section
+      id="why-choose-us"
+      className="scroll-mt-24 bg-white px-4 py-16 sm:px-6 md:py-20 lg:px-8"
+    >
       <div className="mx-auto max-w-7xl">
 
         {/* Section Heading */}

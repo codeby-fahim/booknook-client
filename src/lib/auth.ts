@@ -10,6 +10,14 @@ export const auth = betterAuth({
     client,
   }),
   emailAndPassword: {
-    enabled: true
+    enabled: true,
+    // Keep the server policy in sync with the sign-up form (6+ characters).
+    minPasswordLength: 6,
   },
+  socialProviders:{
+    google:{
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    }
+  }
 });
