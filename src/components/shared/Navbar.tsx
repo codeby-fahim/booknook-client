@@ -21,7 +21,16 @@ const Navbar = () => {
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(`${href}/`);
+    if (pathname === href) return true;
+
+    const hasNestedMatch = pathname.startsWith(`${href}/`);
+    if (!hasNestedMatch) return false;
+
+    // Don't highlight a parent route (e.g. /books) when a more specific
+    // navigation item (e.g. /books/add) is the active one.
+    return !navLinks.some(
+      (link) => link.href.startsWith(`${href}/`) && pathname.startsWith(link.href)
+    );
   };
 
   const linkClass = (href: string) =>

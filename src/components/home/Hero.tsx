@@ -4,8 +4,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, Pagination, EffectFade } from "swiper/modules";
+import type { Swiper as SwiperType } from "swiper";
+import { Pagination, EffectFade } from "swiper/modules";
 import { ArrowRight, BookOpen, Sparkles } from "lucide-react";
 
 import "swiper/css";
@@ -13,14 +15,31 @@ import "swiper/css/pagination";
 import "swiper/css/effect-fade";
 
 const images = [
-  "/heroimage/hero1.webp",
-  "/heroimage/hero2.webp",
-  "/heroimage/hero3.webp",
-  "/heroimage/hero4.webp",
-  "/heroimage/hero5.webp",
+  "/heroImage/hero1.webp",
+  "/heroImage/hero2.webp",
+  "/heroImage/hero3.webp",
+  "/heroImage/hero4.webp",
+  "/heroImage/hero5.webp",
 ];
 
 const Hero = () => {
+  const [swiper, setSwiper] = useState<SwiperType | null>(null);
+
+  useEffect(() => {
+    if (!swiper) return;
+
+    // Swiper's Autoplay module reads `new Date()` during render, which breaks
+    // Next.js prerendering (cacheComponents). Drive the slides from an effect
+    // instead so the slider still auto-plays without blocking the build.
+    const timer = window.setInterval(() => {
+      if (!swiper.destroyed) {
+        swiper.slideNext();
+      }
+    }, 3500);
+
+    return () => window.clearInterval(timer);
+  }, [swiper]);
+
   return (
     <section className="overflow-hidden bg-[#FAF8F3]">
       <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-14 sm:px-6 md:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8">
@@ -90,13 +109,10 @@ const Hero = () => {
 
           <div className="relative overflow-hidden rounded-3xl border border-[#E7E5DF] bg-white p-2 shadow-xl sm:p-3">
             <Swiper
-              modules={[Autoplay, Pagination, EffectFade]}
+              modules={[Pagination, EffectFade]}
               effect="fade"
               loop
-              autoplay={{
-                delay: 3500,
-                disableOnInteraction: false,
-              }}
+              onSwiper={setSwiper}
               pagination={{
                 clickable: true,
               }}

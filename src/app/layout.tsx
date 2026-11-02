@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {  Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
+import Footer from "@/components/shared/Footer";
 
 const inter = Inter({
   display: 'swap',
@@ -28,7 +29,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-[#FAF8F3] text-[#252D29]">
         <Navbar></Navbar>
         {children}
-        </body>
+        <Footer></Footer>
+      </body>
     </html>
   );
 }
