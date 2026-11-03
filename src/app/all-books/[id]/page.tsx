@@ -206,8 +206,8 @@ const BookDetailContent = () => {
           <div className="overflow-hidden rounded-2xl border border-[#E7E5DF] bg-white shadow-sm">
             <div className="grid gap-8 p-5 sm:p-8 md:grid-cols-[300px_1fr]">
               {/* Cover */}
-              <div className="mx-auto w-full max-w-[300px]">
-                <div className="aspect-[4/5] overflow-hidden rounded-xl bg-[#FAF8F3] shadow-md">
+              <div className="mx-auto w-full max-w-75">
+                <div className="aspect-4/5 overflow-hidden rounded-xl bg-[#FAF8F3] shadow-md">
                   {book.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -340,7 +340,7 @@ const BookDetailContent = () => {
 
 const DetailsSkeleton = () => (
   <div className="grid gap-8 rounded-2xl border border-[#E7E5DF] bg-white p-5 shadow-sm sm:p-8 md:grid-cols-[300px_1fr]">
-    <div className="mx-auto aspect-[4/5] w-full max-w-[300px] animate-pulse rounded-xl bg-[#173F35]/10" />
+    <div className="mx-auto aspect-4/5 w-full max-w-75 animate-pulse rounded-xl bg-[#173F35]/10" />
 
     <div className="space-y-4">
       <div className="h-5 w-24 animate-pulse rounded bg-[#173F35]/10" />
