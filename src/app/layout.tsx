@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {  Inter } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
@@ -28,7 +29,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.className}  h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#FAF8F3] text-[#252D29]">
-        <Navbar></Navbar>
+        <Suspense
+          fallback={
+            <div
+              aria-hidden="true"
+              className="h-[69px] border-b border-[#E7E5DF] bg-[#FAF8F3]"
+            />
+          }
+        >
+          <Navbar />
+        </Suspense>
         <main className="flex-1">{children}</main>
         <Footer></Footer>
         <Toaster richColors position="top-right" />

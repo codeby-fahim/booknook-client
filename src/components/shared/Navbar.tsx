@@ -21,7 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navLinks = [
   { name: "Home", href: "/" },
-  { name: "Books", href: "/books" },
+  { name: "All Books", href: "/all-books" },
   { name: "Add Book", href: "/add-books" },
   { name: "My Books", href: "/my-books" },
   { name: "My Borrows", href: "/my-borrows" },
@@ -273,7 +273,7 @@ const Navbar = () => {
                       </p>
                     </div>
                   </div>
-
+                  
                   <button
                     type="button"
                     onClick={handleSignOut}
