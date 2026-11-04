@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 import { authClient } from "@/lib/auth-client";
 import { getTokenFromClient } from "@/lib/getTokenFromClient";
 import BooksCard from "@/components/books/BooksCard";
 import type { IBook } from "@/lib/type/bookFormData";
 
-import { BookOpen, LockKeyhole, RefreshCw } from "lucide-react";
+import { BookOpen, RefreshCw } from "lucide-react";
 
 const AllBooksPage = () => {
+  // The catalogue is public, so guests can load it too. We only wait for the
+  // session check so signed-in users can send their token when available.
   const { data: session, isPending } = authClient.useSession();
   const signedInEmail = session?.user?.email;
 
@@ -20,34 +21,24 @@ const AllBooksPage = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (isPending || !signedInEmail) return;
+    if (isPending) return;
 
     let cancelled = false;
     const controller = new AbortController();
 
     const load = async () => {
       try {
-        const token = await getTokenFromClient();
-
-        if (!token) {
-          throw new Error("Your session has expired. Please sign in again.");
-        }
+        const token = signedInEmail ? await getTokenFromClient() : undefined;
 
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/all-books`, {
           method: "GET",
-          headers: {
-            authorization: `Bearer ${token}`,
-          },
+          headers: token ? { authorization: `Bearer ${token}` } : undefined,
           cache: "no-store",
           signal: controller.signal,
         });
 
         if (!res.ok) {
-          throw new Error(
-            res.status === 401
-              ? "Your session has expired. Please sign in again."
-              : "Could not load the books right now."
-          );
+          throw new Error("Could not load the books right now.");
         }
 
         const data = await res.json();
@@ -104,31 +95,9 @@ const AllBooksPage = () => {
           </p>
         </div>
 
-        {/* Session loading / signed out */}
+        {/* Session loading */}
         {isPending ? (
           <LoadingGrid />
-        ) : !signedInEmail ? (
-          <div className="mx-auto max-w-lg rounded-2xl border border-[#E7E5DF] bg-white p-6 text-center shadow-sm sm:p-10">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#173F35]/10 text-[#173F35]">
-              <LockKeyhole size={22} />
-            </div>
-
-            <h2 className="text-xl font-bold text-[#173F35]">
-              Sign in to browse books
-            </h2>
-
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#727C75]">
-              The book collection is protected. Please sign in with your
-              BookNook account to view it.
-            </p>
-
-            <Link
-              href="/sign-in?callbackUrl=/all-books"
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-[#173F35] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#102F28]"
-            >
-              Sign In
-            </Link>
-          </div>
         ) : isLoading ? (
           <LoadingGrid />
         ) : error ? (

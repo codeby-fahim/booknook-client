@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
 import { getTokenFromClient } from "@/lib/getTokenFromClient";
@@ -16,7 +16,6 @@ import {
   CalendarDays,
   Copy,
   Loader2,
-  LockKeyhole,
   Mail,
   RefreshCw,
   UserRound,
@@ -39,7 +38,10 @@ const formatDate = (value?: string | Date) => {
 const BookDetailContent = () => {
   const params = useParams<{ id: string }>();
   const bookId = typeof params?.id === "string" ? params.id : "";
+  const router = useRouter();
 
+  // Book details are public. The session check only decides whether we send
+  // an auth token along with the request.
   const { data: session, isPending } = authClient.useSession();
   const signedInEmail = session?.user?.email;
 
@@ -47,39 +49,30 @@ const BookDetailContent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isBorrowing, setIsBorrowing] = useState(false);
 
   useEffect(() => {
-    if (isPending || !signedInEmail || !bookId) return;
+    if (isPending || !bookId) return;
 
     let cancelled = false;
     const controller = new AbortController();
 
     const load = async () => {
       try {
-        const token = await getTokenFromClient();
-
-        if (!token) {
-          throw new Error("Your session has expired. Please sign in again.");
-        }
+        const token = signedInEmail ? await getTokenFromClient() : undefined;
 
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/all-books/${bookId}`,
           {
             method: "GET",
-            headers: {
-              authorization: `Bearer ${token}`,
-            },
+            headers: token ? { authorization: `Bearer ${token}` } : undefined,
             cache: "no-store",
             signal: controller.signal,
           }
         );
 
         if (!res.ok) {
-          throw new Error(
-            res.status === 401
-              ? "Your session has expired. Please sign in again."
-              : "Could not load this book right now."
-          );
+          throw new Error("Could not load this book right now.");
         }
 
         const data = await res.json();
@@ -118,8 +111,69 @@ const BookDetailContent = () => {
     setRefreshKey((key) => key + 1);
   };
 
-  const handleBorrow = () => {
-    toast.info("Borrowing will be available soon.");
+  const handleBorrow = async () => {
+    if (!bookId) return;
+
+    if (!signedInEmail) {
+      toast.error("Please sign in to borrow this book.");
+      router.push(`/sign-in?callbackUrl=/all-books/${bookId}`);
+      return;
+    }
+
+    try {
+      setIsBorrowing(true);
+
+      const token = await getTokenFromClient();
+
+      if (!token) {
+        toast.error("Your session has expired. Please sign in again.");
+        router.push(`/sign-in?callbackUrl=/all-books/${bookId}`);
+        return;
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/borrows/${encodeURIComponent(
+          signedInEmail
+        )}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ bookId }),
+        }
+      );
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.message || "Could not borrow this book.");
+      }
+
+      toast.success(data?.message || "Book borrowed successfully!");
+
+      // Reflect the borrowed copy locally so the availability badge updates.
+      setBook((previous) =>
+        previous
+          ? {
+              ...previous,
+              availableCopies: Math.max(
+                Number(previous.availableCopies ?? 0) - 1,
+                0
+              ),
+            }
+          : previous
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
+    } finally {
+      setIsBorrowing(false);
+    }
   };
 
   const addedOn = formatDate(book?.createdAt);
@@ -139,27 +193,6 @@ const BookDetailContent = () => {
 
         {isPending ? (
           <DetailsSkeleton />
-        ) : !signedInEmail ? (
-          <div className="mx-auto max-w-lg rounded-2xl border border-[#E7E5DF] bg-white p-6 text-center shadow-sm sm:p-10">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#173F35]/10 text-[#173F35]">
-              <LockKeyhole size={22} />
-            </div>
-
-            <h1 className="text-xl font-bold text-[#173F35]">
-              Sign in to view book details
-            </h1>
-
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#727C75]">
-              The book collection is protected. Please sign in to continue.
-            </p>
-
-            <Link
-              href={`/sign-in?callbackUrl=/all-books/${bookId}`}
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-[#173F35] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#102F28]"
-            >
-              Sign In
-            </Link>
-          </div>
         ) : isLoading ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[#E7E5DF] bg-white p-16 shadow-sm">
             <Loader2 size={30} className="animate-spin text-[#173F35]" />
@@ -322,11 +355,20 @@ const BookDetailContent = () => {
                   <button
                     type="button"
                     onClick={handleBorrow}
-                    disabled={available === 0}
+                    disabled={available === 0 || isBorrowing}
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#173F35] px-6 py-3.5 font-semibold text-white transition hover:bg-[#102F28] hover:shadow-lg disabled:cursor-not-allowed disabled:bg-[#C9C6BD] disabled:text-[#727C75] disabled:hover:shadow-none sm:w-auto"
                   >
-                    <BookmarkPlus size={19} />
-                    {available === 0 ? "Out of Stock" : "Borrow The Book"}
+                    {isBorrowing ? (
+                      <>
+                        <Loader2 size={19} className="animate-spin" />
+                        Borrowing...
+                      </>
+                    ) : (
+                      <>
+                        <BookmarkPlus size={19} />
+                        {available === 0 ? "Out of Stock" : "Borrow The Book"}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

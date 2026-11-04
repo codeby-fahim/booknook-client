@@ -27,6 +27,11 @@ const navLinks = [
   { name: "My Borrows", href: "/my-borrows" },
 ];
 
+// Guests can only reach the public pages. The rest require an account.
+const publicNavLinks = navLinks.filter(
+  (link) => link.href === "/" || link.href === "/all-books"
+);
+
 const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
@@ -37,6 +42,8 @@ const Navbar = () => {
 
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
+
+  const visibleNavLinks = user ? navLinks : publicNavLinks;
 
   const userInitial =
     user?.name?.trim()?.charAt(0)?.toUpperCase() ||
@@ -191,7 +198,7 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden items-center gap-1 lg:flex">
-          {navLinks.map((link) => (
+          {visibleNavLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -231,7 +238,7 @@ const Navbar = () => {
             className="max-h-[calc(100dvh-6rem)] w-[calc(100vw-2rem)] max-w-sm overflow-y-auto border border-[#E7E5DF] bg-[#FAF8F3] p-4 text-[#252D29] shadow-xl lg:hidden"
           >
             <div className="flex flex-col gap-1">
-              {navLinks.map((link) => (
+              {visibleNavLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}

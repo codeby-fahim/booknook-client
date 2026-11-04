@@ -1,12 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 
 import { authClient } from "@/lib/auth-client";
 import { getTokenFromClient } from "@/lib/getTokenFromClient";
 import type { IBook } from "@/lib/type/bookFormData";
 import { toast } from "sonner";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import {
   BookOpen,
@@ -18,6 +30,11 @@ import {
   Trash2,
 } from "lucide-react";
 
+const CATEGORIES = ["Fiction", "Science", "History", "Kids", "Others"];
+
+const inputClass =
+  "w-full rounded-lg border border-[#E7E5DF] bg-white px-3.5 py-2.5 text-sm text-[#252D29] outline-none transition focus:border-[#173F35] focus:ring-2 focus:ring-[#173F35]/10 disabled:cursor-not-allowed disabled:bg-[#FAF8F3] disabled:text-[#727C75]";
+
 const MyBooksPage = () => {
   const { data: session, isPending } = authClient.useSession();
   const signedInEmail = session?.user?.email;
@@ -26,6 +43,14 @@ const MyBooksPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Edit dialog state
+  const [editingBook, setEditingBook] = useState<IBook | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Delete dialog state
+  const [bookToDelete, setBookToDelete] = useState<IBook | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isPending || !signedInEmail) return;
@@ -97,6 +122,155 @@ const MyBooksPage = () => {
     setIsLoading(true);
     setError("");
     setRefreshKey((key) => key + 1);
+  };
+
+  const handleUpdate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!editingBook || !signedInEmail) return;
+
+    const formData = new FormData(event.currentTarget);
+
+    const title = String(formData.get("title") ?? "").trim();
+    const author = String(formData.get("author") ?? "").trim();
+    const category = String(formData.get("category") ?? "");
+    const image = String(formData.get("image") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+    const totalCopies = Number(formData.get("totalCopies"));
+
+    if (!Number.isInteger(totalCopies) || totalCopies < 1) {
+      toast.error("Total copies must be a whole number of at least 1.");
+      return;
+    }
+
+    // Keep the number of borrowed copies intact when the total changes.
+    const previousTotal = Number(editingBook.totalCopies ?? 0);
+    const previousAvailable = Number(editingBook.availableCopies ?? 0);
+    const borrowedCopies = Math.max(previousTotal - previousAvailable, 0);
+    const availableCopies = Math.max(totalCopies - borrowedCopies, 0);
+
+    try {
+      setIsUpdating(true);
+
+      const token = await getTokenFromClient();
+
+      if (!token) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/my-books/${encodeURIComponent(
+          signedInEmail
+        )}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            bookId: editingBook._id,
+            title,
+            author,
+            category,
+            image,
+            description,
+            totalCopies,
+            availableCopies,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        throw new Error(
+          errorBody?.msg || "Could not update the book. Please try again."
+        );
+      }
+
+      setBooks((previous) =>
+        previous.map((book) =>
+          book._id === editingBook._id
+            ? {
+                ...book,
+                title,
+                author,
+                category,
+                image,
+                description,
+                totalCopies,
+                availableCopies,
+              }
+            : book
+        )
+      );
+
+      toast.success("Book updated successfully!");
+      setEditingBook(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while updating the book."
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!bookToDelete || !signedInEmail) return;
+
+    const bookId = bookToDelete._id;
+
+    if (!bookId) {
+      toast.error("This book could not be deleted. Missing book id.");
+      return;
+    }
+
+    try {
+      setDeletingId(bookId);
+
+      const token = await getTokenFromClient();
+
+      if (!token) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/my-books/${encodeURIComponent(
+          signedInEmail
+        )}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ bookId }),
+        }
+      );
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        throw new Error(
+          errorBody?.msg || "Could not delete the book. Please try again."
+        );
+      }
+
+      setBooks((previous) => previous.filter((book) => book._id !== bookId));
+      setBookToDelete(null);
+
+      toast.success("Book deleted successfully!");
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while deleting the book."
+      );
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -267,7 +441,13 @@ const MyBooksPage = () => {
                       </td>
 
                       <td className="px-6 py-4">
-                        <BookActions />
+                        <BookActions
+                          book={book}
+                          onEdit={setEditingBook}
+                          onDelete={setBookToDelete}
+                          isDeleting={deletingId === book._id}
+                          disabled={isUpdating || deletingId !== null}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -310,7 +490,14 @@ const MyBooksPage = () => {
                     </div>
 
                     <div className="mt-3">
-                      <BookActions fullWidth />
+                      <BookActions
+                        book={book}
+                        onEdit={setEditingBook}
+                        onDelete={setBookToDelete}
+                        isDeleting={deletingId === book._id}
+                        disabled={isUpdating || deletingId !== null}
+                        fullWidth
+                      />
                     </div>
                   </li>
                 ))}
@@ -319,6 +506,221 @@ const MyBooksPage = () => {
           </>
         )}
       </div>
+
+      {/* Edit dialog */}
+      {editingBook && (
+        <AlertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !isUpdating) {
+              setEditingBook(null);
+            }
+          }}
+        >
+          <AlertDialogContent className="sm:max-w-xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Edit book</AlertDialogTitle>
+              <AlertDialogDescription>
+                Update the details for &quot;{editingBook.title}&quot;. These
+                changes are visible to everyone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <form
+              key={editingBook._id}
+              onSubmit={handleUpdate}
+              className="space-y-4"
+            >
+              <div>
+                <label
+                  htmlFor="edit-title"
+                  className="mb-1.5 block text-sm font-semibold text-[#252D29]"
+                >
+                  Book Title
+                </label>
+                <input
+                  id="edit-title"
+                  name="title"
+                  type="text"
+                  required
+                  maxLength={150}
+                  defaultValue={editingBook.title}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="edit-author"
+                    className="mb-1.5 block text-sm font-semibold text-[#252D29]"
+                  >
+                    Author Name
+                  </label>
+                  <input
+                    id="edit-author"
+                    name="author"
+                    type="text"
+                    required
+                    maxLength={100}
+                    defaultValue={editingBook.author}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="edit-category"
+                    className="mb-1.5 block text-sm font-semibold text-[#252D29]"
+                  >
+                    Category
+                  </label>
+                  <select
+                    id="edit-category"
+                    name="category"
+                    required
+                    defaultValue={editingBook.category}
+                    className={`${inputClass} appearance-none`}
+                  >
+                    {CATEGORIES.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    htmlFor="edit-totalCopies"
+                    className="mb-1.5 block text-sm font-semibold text-[#252D29]"
+                  >
+                    Total Copies
+                  </label>
+                  <input
+                    id="edit-totalCopies"
+                    name="totalCopies"
+                    type="number"
+                    min={1}
+                    max={999}
+                    step={1}
+                    required
+                    defaultValue={Number(editingBook.totalCopies ?? 1)}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="edit-image"
+                    className="mb-1.5 block text-sm font-semibold text-[#252D29]"
+                  >
+                    Book Image URL
+                  </label>
+                  <input
+                    id="edit-image"
+                    name="image"
+                    type="url"
+                    required
+                    defaultValue={editingBook.image}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="edit-description"
+                  className="mb-1.5 block text-sm font-semibold text-[#252D29]"
+                >
+                  Short Description
+                </label>
+                <textarea
+                  id="edit-description"
+                  name="description"
+                  rows={4}
+                  required
+                  maxLength={500}
+                  defaultValue={editingBook.description}
+                  className={`${inputClass} resize-y`}
+                />
+              </div>
+
+              <AlertDialogFooter className="pt-2">
+                <AlertDialogCancel disabled={isUpdating}>
+                  Cancel
+                </AlertDialogCancel>
+
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#173F35] px-4 text-sm font-semibold text-white transition hover:bg-[#102F28] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Pencil size={16} />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </AlertDialogFooter>
+            </form>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Delete dialog */}
+      {bookToDelete && (
+        <AlertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !deletingId) {
+              setBookToDelete(null);
+            }
+          }}
+        >
+          <AlertDialogContent className="sm:max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this book?</AlertDialogTitle>
+              <AlertDialogDescription>
+                &quot;{bookToDelete.title}&quot; will be permanently removed
+                from the library. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingId !== null}>
+                Cancel
+              </AlertDialogCancel>
+
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={deletingId !== null}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {deletingId !== null ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete
+                  </>
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </section>
   );
 };
@@ -353,7 +755,23 @@ const BookThumb = ({
   );
 };
 
-const BookActions = ({ fullWidth = false }: { fullWidth?: boolean }) => (
+type BookActionsProps = {
+  book: IBook;
+  onEdit: (book: IBook) => void;
+  onDelete: (book: IBook) => void;
+  isDeleting?: boolean;
+  disabled?: boolean;
+  fullWidth?: boolean;
+};
+
+const BookActions = ({
+  book,
+  onEdit,
+  onDelete,
+  isDeleting = false,
+  disabled = false,
+  fullWidth = false,
+}: BookActionsProps) => (
   <div
     className={`flex items-center gap-2 ${
       fullWidth ? "w-full" : "justify-end"
@@ -361,8 +779,9 @@ const BookActions = ({ fullWidth = false }: { fullWidth?: boolean }) => (
   >
     <button
       type="button"
-      onClick={() => toast.info("Editing books will be available soon.")}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md bg-[#252D29] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#173F35] ${
+      onClick={() => onEdit(book)}
+      disabled={disabled || isDeleting}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-md bg-[#252D29] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#173F35] disabled:cursor-not-allowed disabled:opacity-60 ${
         fullWidth ? "flex-1" : ""
       }`}
     >
@@ -372,13 +791,18 @@ const BookActions = ({ fullWidth = false }: { fullWidth?: boolean }) => (
 
     <button
       type="button"
-      onClick={() => toast.info("Deleting books will be available soon.")}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md bg-red-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-700 ${
+      onClick={() => onDelete(book)}
+      disabled={disabled || isDeleting}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-md bg-red-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 ${
         fullWidth ? "flex-1" : ""
       }`}
     >
-      <Trash2 size={13} />
-      Delete
+      {isDeleting ? (
+        <Loader2 size={13} className="animate-spin" />
+      ) : (
+        <Trash2 size={13} />
+      )}
+      {isDeleting ? "Deleting..." : "Delete"}
     </button>
   </div>
 );

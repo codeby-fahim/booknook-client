@@ -11,12 +11,12 @@ import type { IBook } from "@/lib/type/bookFormData";
 import {
   ArrowRight,
   BookOpen,
-  LockKeyhole,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
 
 const NewArrivals = () => {
+  // New arrivals are public so guests can browse them on the home page.
   const { data: session, isPending } = authClient.useSession();
   const signedInEmail = session?.user?.email;
 
@@ -26,37 +26,27 @@ const NewArrivals = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (isPending || !signedInEmail) return;
+    if (isPending) return;
 
     let cancelled = false;
     const controller = new AbortController();
 
     const load = async () => {
       try {
-        const token = await getTokenFromClient();
-
-        if (!token) {
-          throw new Error("Your session has expired. Please sign in again.");
-        }
+        const token = signedInEmail ? await getTokenFromClient() : undefined;
 
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/arrival-books`,
           {
             method: "GET",
-            headers: {
-              authorization: `Bearer ${token}`,
-            },
+            headers: token ? { authorization: `Bearer ${token}` } : undefined,
             cache: "no-store",
             signal: controller.signal,
           }
         );
 
         if (!res.ok) {
-          throw new Error(
-            res.status === 401
-              ? "Your session has expired. Please sign in again."
-              : "Could not load the new arrivals right now."
-          );
+          throw new Error("Could not load the new arrivals right now.");
         }
 
         const data = await res.json();
@@ -125,31 +115,9 @@ const NewArrivals = () => {
           </Link>
         </div>
 
-        {/* Session loading / signed out */}
+        {/* Session loading */}
         {isPending ? (
           <LoadingGrid />
-        ) : !signedInEmail ? (
-          <div className="mx-auto max-w-lg rounded-2xl border border-[#E7E5DF] bg-[#FAF8F3] p-6 text-center sm:p-10">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#173F35]/10 text-[#173F35]">
-              <LockKeyhole size={22} />
-            </div>
-
-            <h3 className="text-lg font-bold text-[#173F35]">
-              Sign in to see new arrivals
-            </h3>
-
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#727C75]">
-              Sign in with your BookNook account to browse the newest books in
-              the library.
-            </p>
-
-            <Link
-              href="/sign-in?callbackUrl=/"
-              className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-[#173F35] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#102F28]"
-            >
-              Sign In
-            </Link>
-          </div>
         ) : isLoading ? (
           <LoadingGrid />
         ) : error ? (
