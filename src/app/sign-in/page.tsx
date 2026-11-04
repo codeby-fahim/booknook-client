@@ -32,7 +32,11 @@ const LoginPage = () => {
       "callbackUrl"
     );
 
-    return callbackUrl?.startsWith("/") ? callbackUrl : "/";
+    // Internal paths only. Reject protocol-relative URLs such as "//evil.com"
+    // so the callback can never redirect off-site.
+    return callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/";
   };
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {

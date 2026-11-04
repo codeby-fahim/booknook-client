@@ -28,10 +28,11 @@ export const config = {
   matcher: [
     '/add-books',
     '/add-books/:path*',
-    '/all-books/:path',
     '/my-books',
     '/my-books/:path*',
     '/my-borrows',
     '/my-borrows/:path*',
+    '/my-profile',
+    '/my-profile/:path*',
   ],
 }

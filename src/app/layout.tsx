@@ -33,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           fallback={
             <div
               aria-hidden="true"
-              className="h-[69px] border-b border-[#E7E5DF] bg-[#FAF8F3]"
+              className="h-17.25 border-b border-[#E7E5DF] bg-[#FAF8F3]"
             />
           }
         >
